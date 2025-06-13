@@ -37,7 +37,6 @@ local predYInput = mainGroup:AddInput('PredY',{Default=tostring(predY),Numeric=t
     local num=tonumber(val)
     if num then predY=num end
 end})
--- Full R15 parts list for dropdowns:
 local r15Parts = {
     "HumanoidRootPart",
     "LowerTorso",
@@ -85,7 +84,7 @@ screenGui.ResetOnSpawn=false
 screenGui.Parent=game:GetService("CoreGui")
 
 local btn=Instance.new("TextButton")
-btn.Size=UDim2.new(0,60,0,60)
+btn.Size=UDim2.new(0,70,0,70)
 btn.Position=UDim2.new(0,10,0,100)
 btn.AnchorPoint=Vector2.new(0,0)
 btn.BackgroundTransparency=0
@@ -96,7 +95,7 @@ btn.TextScaled=true
 btn.Parent=screenGui
 
 local uiCorner=Instance.new("UICorner")
-uiCorner.CornerRadius=UDim.new(0,0.4)
+uiCorner.CornerRadius=UDim.new(0,9)
 uiCorner.Parent=btn
 
 local function destroyHighlight()
