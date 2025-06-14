@@ -1,9 +1,27 @@
--- Load Linoria, ThemeManager, SaveManager (same as original)
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Mc4121ban/Linoria-Library-Mobile/refs/heads/main/Gui%20Lib%20%5BLibrary%5D"))()
-local ThemeManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/KJ7285/Theme-manger-/refs/heads/main/ThemeManager.Lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/Mc4121ban/Linoria-Library-Mobile/refs/heads/main/Gui%20Lib%20%5BSaveManager%5D"))()
+-- Load Linoria, ThemeManager, SaveManager
+local okLib, Library = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Mc4121ban/Linoria-Library-Mobile/refs/heads/main/Gui%20Lib%20%5BLibrary%5D"))()
+end)
+if not okLib or type(Library) ~= "table" then
+    warn("Failed to load Linoria Library")
+    return
+end
+local okTheme, ThemeManager = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/KJ7285/Theme-manger-/refs/heads/main/ThemeManager.Lua"))()
+end)
+if not okTheme or type(ThemeManager) ~= "table" then
+    warn("Failed to load ThemeManager")
+    return
+end
+local okSave, SaveManager = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Mc4121ban/Linoria-Library-Mobile/refs/heads/main/Gui%20Lib%20%5BSaveManager%5D"))()
+end)
+if not okSave or type(SaveManager) ~= "table" then
+    warn("Failed to load SaveManager")
+    return
+end
 
--- Create window named [MoonLight]🌙
+-- Create window
 local Window = Library:CreateWindow({
     Title = '[MoonLight]🌙',
     Center = true,
@@ -17,19 +35,6 @@ local Tabs = {
     Misc = Window:AddTab('Misc'),
     ['UI Settings'] = Window:AddTab('UI Settings'),
 }
-
--- Simple debug: list all keys in Options
-local function printOptionsKeys()
-    if typeof(Options) == "table" then
-        local keys = {}
-        for k,_ in pairs(Options) do
-            table.insert(keys, k)
-        end
-        warn("Options keys:", unpack(keys))
-    else
-        warn("Options is not a table!")
-    end
-end
 
 -- Config vars
 local predX = 0.13946352838245239252
@@ -47,7 +52,6 @@ local autoAirEnabled = false
 local prevInAir = false
 local autoArmorEnabled = false
 local autoReloadEnabled = false
--- silentAim config
 local silentAim = { isActive = false, targetPart = "HumanoidRootPart", prediction = 0.165 }
 
 -- R15 parts list
@@ -59,44 +63,23 @@ local r15Parts = {
     "RightUpperLeg","RightLowerLeg","RightFoot"
 }
 
--- Helper to safely get dropdown values from Options
+-- Helpers to safely get Options values
 local function safeGetDropdownValue(key, default)
-    if type(Options) == "table" and Options[key] then
-        local v = Options[key].Value
-        if type(v) == "string" then
-            return v
-        end
+    if type(Options) == "table" and Options[key] and type(Options[key].Value) == "string" then
+        return Options[key].Value
     end
     return default
 end
--- Helper to safely get color picker
 local function safeGetColorValue(key, default)
-    if type(Options) == "table" and Options[key] then
-        local v = Options[key].Value
-        if typeof(v) == "Color3" then
-            return v
-        end
+    if type(Options) == "table" and Options[key] and typeof(Options[key].Value) == "Color3" then
+        return Options[key].Value
     end
     return default
 end
 
 -- MAIN TAB UI
-local LeftGroupBox = Tabs.Main:AddLeftGroupbox('CamLock Settings')
-
--- Simple original example toggle, to compare:
-LeftGroupBox:AddToggle('TestToggle', {
-    Text = 'Test Toggle',
-    Default = false,
-    Tooltip = 'Just to test Options key existence',
-    Callback = function(val)
-        print('[cb] TestToggle changed:', val)
-        -- print current Options keys for debugging
-        printOptionsKeys()
-    end
-})
-
--- Cam toggle
-LeftGroupBox:AddToggle('CamLockToggle', {
+local mainGroup = Tabs.Main:AddLeftGroupbox('CamLock Settings')
+mainGroup:AddToggle('CamLockToggle', {
     Text = 'Enable CamLock',
     Default = false,
     Tooltip = 'Enable camera lock',
@@ -112,9 +95,7 @@ LeftGroupBox:AddToggle('CamLockToggle', {
         end
     end
 })
-
--- Lock toggle
-LeftGroupBox:AddToggle('LockToggle', {
+mainGroup:AddToggle('LockToggle', {
     Text = 'Enable Lock',
     Default = false,
     Tooltip = 'Enable silent lock',
@@ -130,9 +111,7 @@ LeftGroupBox:AddToggle('LockToggle', {
         end
     end
 })
-
--- Prediction inputs
-LeftGroupBox:AddInput('CamPredX', {
+mainGroup:AddInput('CamPredX', {
     Default = tostring(predX),
     Numeric = true,
     Finished = false,
@@ -144,7 +123,7 @@ LeftGroupBox:AddInput('CamPredX', {
         if n then predX = n end
     end
 })
-LeftGroupBox:AddInput('CamPredY', {
+mainGroup:AddInput('CamPredY', {
     Default = tostring(predY),
     Numeric = true,
     Finished = false,
@@ -156,7 +135,7 @@ LeftGroupBox:AddInput('CamPredY', {
         if n then predY = n end
     end
 })
-LeftGroupBox:AddInput('LockPred', {
+mainGroup:AddInput('LockPred', {
     Default = tostring(silentAim.prediction),
     Numeric = true,
     Finished = false,
@@ -168,9 +147,7 @@ LeftGroupBox:AddInput('LockPred', {
         if n then silentAim.prediction = n end
     end
 })
-
--- Dropdowns for parts
-LeftGroupBox:AddDropdown('AimPartDropdown', {
+mainGroup:AddDropdown('AimPartDropdown', {
     Values = r15Parts,
     Default = 1,
     Multi = false,
@@ -180,7 +157,7 @@ LeftGroupBox:AddDropdown('AimPartDropdown', {
         silentAim.targetPart = val or "HumanoidRootPart"
     end
 })
-LeftGroupBox:AddDropdown('AirPartDropdown', {
+mainGroup:AddDropdown('AirPartDropdown', {
     Values = r15Parts,
     Default = 1,
     Multi = false,
@@ -188,35 +165,31 @@ LeftGroupBox:AddDropdown('AirPartDropdown', {
     Tooltip = 'Part for cam/lock in air',
     Callback = function(val) end
 })
-
--- Highlight color picker
-LeftGroupBox:AddLabel('Highlight Color'):AddColorPicker('HighlightColor', {
+mainGroup:AddLabel('Highlight Color'):AddColorPicker('HighlightColor', {
     Default = Color3.new(1,0,0),
     Title = 'Highlight Color',
     Transparency = 0,
     Callback = function(val) end
 })
-
--- Other toggles
-LeftGroupBox:AddToggle('WallCheckToggle', {
+mainGroup:AddToggle('WallCheckToggle', {
     Text = 'WallCheck',
     Default = false,
     Tooltip = 'Skip blocked targets on acquire',
     Callback = function(v) wallCheckEnabled = v end
 })
-LeftGroupBox:AddToggle('FriendCheckToggle', {
+mainGroup:AddToggle('FriendCheckToggle', {
     Text = 'FriendCheck',
     Default = false,
     Tooltip = 'Skip friends',
     Callback = function(v) friendCheckEnabled = v end
 })
-LeftGroupBox:AddToggle('KoCheckToggle', {
+mainGroup:AddToggle('KoCheckToggle', {
     Text = 'KoCheck',
     Default = false,
     Tooltip = 'Unlock if Knocked attr true',
     Callback = function(v) koCheckEnabled = v end
 })
-LeftGroupBox:AddToggle('AutoAirToggle', {
+mainGroup:AddToggle('AutoAirToggle', {
     Text = 'AutoAir',
     Default = false,
     Tooltip = 'Activate tool when target in air',
@@ -350,13 +323,9 @@ local function startRenderSteppedLock(pl)
             return
         end
         local char = targetPlayer.Character
-        if not char then
-            return
-        end
+        if not char then return end
         local humanoid = char:FindFirstChild("Humanoid")
-        if not humanoid or humanoid.Health <= 0 then
-            return
-        end
+        if not humanoid or humanoid.Health <= 0 then return end
         if koCheckEnabled then
             local knocked = char:GetAttribute("Knocked")
             if knocked then
@@ -366,7 +335,6 @@ local function startRenderSteppedLock(pl)
         end
         local floorMat = humanoid.FloorMaterial or Enum.Material.Air
         local inAir = (floorMat == Enum.Material.Air)
-        -- AutoAir
         if inAir and autoAirEnabled and not prevInAir then
             prevInAir = true
             task.delay(0.2, function()
@@ -380,16 +348,12 @@ local function startRenderSteppedLock(pl)
         elseif not inAir then
             prevInAir = false
         end
-        -- Determine part name safely
         local aimPartName = safeGetDropdownValue("AimPartDropdown", "HumanoidRootPart")
         local airPartName = safeGetDropdownValue("AirPartDropdown", aimPartName)
         local partName = inAir and airPartName or aimPartName
         local rootPart = char:FindFirstChild(partName)
-        if not rootPart then
-            return
-        end
+        if not rootPart then return end
         applyHighlight(char)
-        -- CamLock
         if camEnabled then
             local vel = rootPart.Velocity or Vector3.new(0,0,0)
             local fallOffset = 0
@@ -397,7 +361,6 @@ local function startRenderSteppedLock(pl)
             local offset = Vector3.new(vel.X * predX, vel.Y * predY + fallOffset, vel.Z * predX)
             cam.CFrame = CFrame.new(cam.CFrame.Position, rootPart.Position + offset)
         end
-        -- Silent lock
         if lockEnabled then
             silentAim.isActive = true
         end
@@ -494,7 +457,7 @@ btn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Handle leaving/rejoining
+-- Handle leaving
 Players.PlayerRemoving:Connect(function(pl)
     if targetPlayer and pl == targetPlayer then
         targetPlayer = nil
@@ -502,7 +465,7 @@ Players.PlayerRemoving:Connect(function(pl)
     end
 end)
 
--- Misc: Auto Armor
+-- Auto Armor
 task.spawn(function()
     while task.wait(0.1) do
         if autoArmorEnabled then
@@ -514,7 +477,7 @@ task.spawn(function()
     end
 end)
 
--- Misc: Auto Reload
+-- Auto Reload
 local function setupAmmoWatcher(tool)
     if not tool or not tool:IsA("Tool") then return end
     local ammo = tool:FindFirstChild("AMMO")
@@ -541,7 +504,7 @@ pcall(function()
     game:GetService("StarterGui"):SetCore("SendNotification",{Title="MoonLight Loaded",Text="Enjoy 🌙"})
 end)
 
--- No jump cooldown as before
+-- No jump cooldown
 local mt = getrawmetatable(game)
 local oldNewIndex = mt.__newindex
 setreadonly(mt,false)
@@ -553,7 +516,7 @@ mt.__newindex = newcclosure(function(self, Index, Value)
 end)
 setreadonly(mt,true)
 
--- Silent lock hook: use silentAim.isActive and targetPlayer
+-- Silent lock hook
 local mt2 = getrawmetatable(game)
 local oldNamecall = mt2.__namecall
 setreadonly(mt2,false)
