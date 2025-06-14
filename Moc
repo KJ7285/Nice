@@ -1,29 +1,55 @@
--- Load Linoria, ThemeManager, SaveManager
+-- ================================
+-- MoonLight Full Script with Robust Checks
+-- ================================
+
+-- 1. Load Linoria Library safely
 local okLib, Library = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Mc4121ban/Linoria-Library-Mobile/refs/heads/main/Gui%20Lib%20%5BLibrary%5D"))()
+    local src = game:HttpGet("https://raw.githubusercontent.com/Mc4121ban/Linoria-Library-Mobile/refs/heads/main/Gui%20Lib%20%5BLibrary%5D")
+    local fn = loadstring(src)
+    if typeof(fn) == "function" then
+        return fn()
+    else
+        error("loadstring for Linoria returned nil")
+    end
 end)
 if not okLib or type(Library) ~= "table" then
-    warn("Failed to load Linoria Library")
-    return
-end
-local okTheme, ThemeManager = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/KJ7285/Theme-manger-/refs/heads/main/ThemeManager.Lua"))()
-end)
-if not okTheme or type(ThemeManager) ~= "table" then
-    warn("Failed to load ThemeManager")
-    return
-end
-local okSave, SaveManager = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Mc4121ban/Linoria-Library-Mobile/refs/heads/main/Gui%20Lib%20%5BSaveManager%5D"))()
-end)
-if not okSave or type(SaveManager) ~= "table" then
-    warn("Failed to load SaveManager")
+    warn("Failed to load Linoria Library:", Library)
     return
 end
 
--- Create window
+-- 2. Load ThemeManager safely
+local okTheme, ThemeManager = pcall(function()
+    local src = game:HttpGet("https://raw.githubusercontent.com/KJ7285/Theme-manger-/refs/heads/main/ThemeManager.Lua")
+    local fn = loadstring(src)
+    if typeof(fn) == "function" then
+        return fn()
+    else
+        error("loadstring for ThemeManager returned nil")
+    end
+end)
+if not okTheme or type(ThemeManager) ~= "table" then
+    warn("Failed to load ThemeManager:", ThemeManager)
+    return
+end
+
+-- 3. Load SaveManager safely
+local okSave, SaveManager = pcall(function()
+    local src = game:HttpGet("https://raw.githubusercontent.com/Mc4121ban/Linoria-Library-Mobile/refs/heads/main/Gui%20Lib%20%5BSaveManager%5D")
+    local fn = loadstring(src)
+    if typeof(fn) == "function" then
+        return fn()
+    else
+        error("loadstring for SaveManager returned nil")
+    end
+end)
+if not okSave or type(SaveManager) ~= "table" then
+    warn("Failed to load SaveManager:", SaveManager)
+    return
+end
+
+-- 4. Create Window
 local Window = Library:CreateWindow({
-    Title = '[MoonLight]🌙',
+    Title = "[MoonLight]🌙",
     Center = true,
     AutoShow = true,
     TabPadding = 8,
@@ -31,18 +57,17 @@ local Window = Library:CreateWindow({
     Size = UDim2.new(0, 450, 0, 450),
 })
 local Tabs = {
-    Main = Window:AddTab('Main'),
-    Misc = Window:AddTab('Misc'),
-    ['UI Settings'] = Window:AddTab('UI Settings'),
+    Main = Window:AddTab("Main"),
+    Misc = Window:AddTab("Misc"),
+    ["UI Settings"] = Window:AddTab("UI Settings"),
 }
 
--- Config vars
+-- 5. Config vars
 local predX = 0.13946352838245239252
 local predY = 0.075
 local camEnabled = false
 local lockEnabled = false
 local targetPlayer = nil
-local targetUserId = nil
 local connRender = nil
 local currentHighlight = nil
 local wallCheckEnabled = false
@@ -54,7 +79,7 @@ local autoArmorEnabled = false
 local autoReloadEnabled = false
 local silentAim = { isActive = false, targetPart = "HumanoidRootPart", prediction = 0.165 }
 
--- R15 parts list
+-- 6. R15 parts list
 local r15Parts = {
     "HumanoidRootPart","LowerTorso","UpperTorso","Head",
     "LeftUpperArm","LeftLowerArm","LeftHand",
@@ -63,7 +88,7 @@ local r15Parts = {
     "RightUpperLeg","RightLowerLeg","RightFoot"
 }
 
--- Helpers to safely get Options values
+-- 7. Safe getters for Options
 local function safeGetDropdownValue(key, default)
     if type(Options) == "table" and Options[key] and type(Options[key].Value) == "string" then
         return Options[key].Value
@@ -77,12 +102,12 @@ local function safeGetColorValue(key, default)
     return default
 end
 
--- MAIN TAB UI
-local mainGroup = Tabs.Main:AddLeftGroupbox('CamLock Settings')
-mainGroup:AddToggle('CamLockToggle', {
-    Text = 'Enable CamLock',
+-- 8. MAIN TAB UI
+local mainGroup = Tabs.Main:AddLeftGroupbox("CamLock Settings")
+mainGroup:AddToggle("CamLockToggle", {
+    Text = "Enable CamLock",
     Default = false,
-    Tooltip = 'Enable camera lock',
+    Tooltip = "Enable camera lock",
     Callback = function(v)
         camEnabled = v
         if not camEnabled and not lockEnabled then
@@ -93,12 +118,12 @@ mainGroup:AddToggle('CamLockToggle', {
             btn.Text = "🔓"
             Library:Notify("Tanku:Unlocked from them")
         end
-    end
+    end,
 })
-mainGroup:AddToggle('LockToggle', {
-    Text = 'Enable Lock',
+mainGroup:AddToggle("LockToggle", {
+    Text = "Enable Lock",
     Default = false,
-    Tooltip = 'Enable silent lock',
+    Tooltip = "Enable silent lock",
     Callback = function(v)
         lockEnabled = v
         silentAim.isActive = v
@@ -109,126 +134,126 @@ mainGroup:AddToggle('LockToggle', {
             btn.Text = "🔓"
             Library:Notify("Tanku:Unlocked from them")
         end
-    end
+    end,
 })
-mainGroup:AddInput('CamPredX', {
+mainGroup:AddInput("CamPredX", {
     Default = tostring(predX),
     Numeric = true,
     Finished = false,
-    Text = 'Cam Pred X',
-    Tooltip = 'Prediction X for cam',
-    Placeholder = '0.139',
+    Text = "Cam Pred X",
+    Tooltip = "Prediction X for cam",
+    Placeholder = "0.139",
     Callback = function(val)
         local n = tonumber(val)
         if n then predX = n end
-    end
+    end,
 })
-mainGroup:AddInput('CamPredY', {
+mainGroup:AddInput("CamPredY", {
     Default = tostring(predY),
     Numeric = true,
     Finished = false,
-    Text = 'Cam Pred Y',
-    Tooltip = 'Prediction Y for cam',
-    Placeholder = '0.075',
+    Text = "Cam Pred Y",
+    Tooltip = "Prediction Y for cam",
+    Placeholder = "0.075",
     Callback = function(val)
         local n = tonumber(val)
         if n then predY = n end
-    end
+    end,
 })
-mainGroup:AddInput('LockPred', {
+mainGroup:AddInput("LockPred", {
     Default = tostring(silentAim.prediction),
     Numeric = true,
     Finished = false,
-    Text = 'Lock Pred',
-    Tooltip = 'Prediction for silent lock',
-    Placeholder = '0.165',
+    Text = "Lock Pred",
+    Tooltip = "Prediction for silent lock",
+    Placeholder = "0.165",
     Callback = function(val)
         local n = tonumber(val)
         if n then silentAim.prediction = n end
-    end
+    end,
 })
-mainGroup:AddDropdown('AimPartDropdown', {
+mainGroup:AddDropdown("AimPartDropdown", {
     Values = r15Parts,
     Default = 1,
     Multi = false,
-    Text = 'AimPart',
-    Tooltip = 'Part for cam/lock on ground',
+    Text = "AimPart",
+    Tooltip = "Part for cam/lock on ground",
     Callback = function(val)
         silentAim.targetPart = val or "HumanoidRootPart"
-    end
+    end,
 })
-mainGroup:AddDropdown('AirPartDropdown', {
+mainGroup:AddDropdown("AirPartDropdown", {
     Values = r15Parts,
     Default = 1,
     Multi = false,
-    Text = 'AirPart',
-    Tooltip = 'Part for cam/lock in air',
-    Callback = function(val) end
+    Text = "AirPart",
+    Tooltip = "Part for cam/lock in air",
+    Callback = function(val) end,
 })
-mainGroup:AddLabel('Highlight Color'):AddColorPicker('HighlightColor', {
+mainGroup:AddLabel("Highlight Color"):AddColorPicker("HighlightColor", {
     Default = Color3.new(1,0,0),
-    Title = 'Highlight Color',
+    Title = "Highlight Color",
     Transparency = 0,
-    Callback = function(val) end
+    Callback = function(val) end,
 })
-mainGroup:AddToggle('WallCheckToggle', {
-    Text = 'WallCheck',
+mainGroup:AddToggle("WallCheckToggle", {
+    Text = "WallCheck",
     Default = false,
-    Tooltip = 'Skip blocked targets on acquire',
-    Callback = function(v) wallCheckEnabled = v end
+    Tooltip = "Skip blocked targets on acquire",
+    Callback = function(v) wallCheckEnabled = v end,
 })
-mainGroup:AddToggle('FriendCheckToggle', {
-    Text = 'FriendCheck',
+mainGroup:AddToggle("FriendCheckToggle", {
+    Text = "FriendCheck",
     Default = false,
-    Tooltip = 'Skip friends',
-    Callback = function(v) friendCheckEnabled = v end
+    Tooltip = "Skip friends",
+    Callback = function(v) friendCheckEnabled = v end,
 })
-mainGroup:AddToggle('KoCheckToggle', {
-    Text = 'KoCheck',
+mainGroup:AddToggle("KoCheckToggle", {
+    Text = "KoCheck",
     Default = false,
-    Tooltip = 'Unlock if Knocked attr true',
-    Callback = function(v) koCheckEnabled = v end
+    Tooltip = "Unlock if Knocked attr true",
+    Callback = function(v) koCheckEnabled = v end,
 })
-mainGroup:AddToggle('AutoAirToggle', {
-    Text = 'AutoAir',
+mainGroup:AddToggle("AutoAirToggle", {
+    Text = "AutoAir",
     Default = false,
-    Tooltip = 'Activate tool when target in air',
-    Callback = function(v) autoAirEnabled = v end
+    Tooltip = "Activate tool when target in air",
+    Callback = function(v) autoAirEnabled = v end,
 })
 
--- MISC TAB UI
-local miscGroup = Tabs.Misc:AddLeftGroupbox('Misc Settings')
-miscGroup:AddToggle('AutoArmorToggle', {
-    Text = 'Auto Armor',
+-- 9. MISC TAB UI
+local miscGroup = Tabs.Misc:AddLeftGroupbox("Misc Settings")
+miscGroup:AddToggle("AutoArmorToggle", {
+    Text = "Auto Armor",
     Default = false,
-    Tooltip = 'Spam armor pad',
-    Callback = function(v) autoArmorEnabled = v end
+    Tooltip = "Spam armor pad",
+    Callback = function(v) autoArmorEnabled = v end,
 })
-miscGroup:AddToggle('AutoReloadToggle', {
-    Text = 'Auto Reload',
+miscGroup:AddToggle("AutoReloadToggle", {
+    Text = "Auto Reload",
     Default = false,
-    Tooltip = 'Auto reload when ammo hits zero',
-    Callback = function(v) autoReloadEnabled = v end
+    Tooltip = "Auto reload when ammo hits zero",
+    Callback = function(v) autoReloadEnabled = v end,
 })
 
--- UI Settings
+-- 10. UI Settings
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
-ThemeManager:SetFolder('MoonLight')
-SaveManager:SetFolder('MoonLight/specific-game')
-SaveManager:BuildConfigSection(Tabs['UI Settings'])
-ThemeManager:ApplyToTab(Tabs['UI Settings'])
+ThemeManager:SetFolder("MoonLight")
+SaveManager:SetFolder("MoonLight/specific-game")
+SaveManager:BuildConfigSection(Tabs["UI Settings"])
+ThemeManager:ApplyToTab(Tabs["UI Settings"])
 SaveManager:LoadAutoloadConfig()
 
--- Services
+-- 11. Services
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local cam = workspace.CurrentCamera
 
--- On-screen button
+-- 12. On-screen button
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "CamLockGui"
 screenGui.ResetOnSpawn = false
@@ -249,7 +274,7 @@ local uiCorner = Instance.new("UICorner")
 uiCorner.CornerRadius = UDim.new(0, 9)
 uiCorner.Parent = btn
 
--- Watermark
+-- 13. Watermark
 local FrameTimer, FrameCounter, FPS = tick(), 0, 60
 RunService.RenderStepped:Connect(function()
     FrameCounter += 1
@@ -258,10 +283,10 @@ RunService.RenderStepped:Connect(function()
         FrameTimer = tick()
         FrameCounter = 0
     end
-    Library:SetWatermark(('MoonLight 🌙 | %s fps'):format(math.floor(FPS)))
+    Library:SetWatermark(("MoonLight 🌙 | %s fps"):format(math.floor(FPS)))
 end)
 
--- Highlight helpers
+-- 14. Highlight helpers
 local function destroyHighlight()
     if currentHighlight then
         currentHighlight:Destroy()
@@ -280,7 +305,7 @@ local function applyHighlight(char)
     currentHighlight = h
 end
 
--- Raycast for wall check
+-- 15. Raycast for wall check
 local function raycastBlock(origin, pos)
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Blacklist
@@ -293,7 +318,7 @@ local function raycastBlock(origin, pos)
     return result ~= nil
 end
 
--- Stop cam/lock
+-- 16. Stop cam/lock
 local function stopLock()
     if connRender then
         connRender:Disconnect()
@@ -307,7 +332,7 @@ local function stopLock()
     Library:Notify("Tanku:Unlocked from them")
 end
 
--- Main loop for cam & lock
+-- 17. Main loop for cam & lock
 local function startRenderSteppedLock(pl)
     if connRender then
         connRender:Disconnect()
@@ -367,7 +392,7 @@ local function startRenderSteppedLock(pl)
     end)
 end
 
--- Acquire nearest target
+-- 18. Acquire nearest target
 local function attemptLockOn(pl)
     if not (camEnabled or lockEnabled) then
         Library:Notify("Enable CamLock or Lock first 😏")
@@ -391,7 +416,7 @@ local function attemptLockOn(pl)
     startRenderSteppedLock(pl)
 end
 
--- Button dragging
+-- 19. Button dragging
 local dragging = false
 local dragInput, dragStart, startPos
 btn.InputBegan:Connect(function(input)
@@ -418,7 +443,7 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Button click: acquire or release
+-- 20. Button click: acquire or release
 btn.MouseButton1Click:Connect(function()
     if targetPlayer then
         local char = targetPlayer.Character
@@ -457,7 +482,7 @@ btn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Handle leaving
+-- 21. Handle leaving
 Players.PlayerRemoving:Connect(function(pl)
     if targetPlayer and pl == targetPlayer then
         targetPlayer = nil
@@ -465,7 +490,7 @@ Players.PlayerRemoving:Connect(function(pl)
     end
 end)
 
--- Auto Armor
+-- 22. Auto Armor
 task.spawn(function()
     while task.wait(0.1) do
         if autoArmorEnabled then
@@ -477,7 +502,7 @@ task.spawn(function()
     end
 end)
 
--- Auto Reload
+-- 23. Auto Reload
 local function setupAmmoWatcher(tool)
     if not tool or not tool:IsA("Tool") then return end
     local ammo = tool:FindFirstChild("AMMO")
@@ -504,7 +529,7 @@ pcall(function()
     game:GetService("StarterGui"):SetCore("SendNotification",{Title="MoonLight Loaded",Text="Enjoy 🌙"})
 end)
 
--- No jump cooldown
+-- 24. No jump cooldown
 local mt = getrawmetatable(game)
 local oldNewIndex = mt.__newindex
 setreadonly(mt,false)
@@ -516,7 +541,7 @@ mt.__newindex = newcclosure(function(self, Index, Value)
 end)
 setreadonly(mt,true)
 
--- Silent lock hook
+-- 25. Silent lock hook
 local mt2 = getrawmetatable(game)
 local oldNamecall = mt2.__namecall
 setreadonly(mt2,false)
