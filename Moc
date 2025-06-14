@@ -3,8 +3,15 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Mc412
 local ThemeManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/KJ7285/Theme-manger-/refs/heads/main/ThemeManager.Lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/Mc4121ban/Linoria-Library-Mobile/refs/heads/main/Gui%20Lib%20%5BSaveManager%5D"))()
 
--- Create window
-local Window = Library:CreateWindow({Title='[MoonLight]🌙', Center=true, AutoShow=true, TabPadding=8, MenuFadeTime=0.2, Size=UDim2.new(0,450,0,450)})
+-- Create window named [MoonLight]🌙
+local Window = Library:CreateWindow({
+    Title = '[MoonLight]🌙',
+    Center = true,
+    AutoShow = true,
+    TabPadding = 8,
+    MenuFadeTime = 0.2,
+    Size = UDim2.new(0, 450, 0, 450),
+})
 local Tabs = {
     Main = Window:AddTab('Main'),
     Misc = Window:AddTab('Misc'),
@@ -29,27 +36,28 @@ local prevInAir = false
 local autoArmorEnabled = false
 local autoReloadEnabled = false
 -- silentAim config
-local silentAim = {isActive=false, targetPart="HumanoidRootPart", prediction=0.165}
+local silentAim = { isActive = false, targetPart = "HumanoidRootPart", prediction = 0.165 }
 
 -- R15 parts list
 local r15Parts = {
-    "HumanoidRootPart","LowerTorso","UpperTorso","Head",
-    "LeftUpperArm","LeftLowerArm","LeftHand",
-    "RightUpperArm","RightLowerArm","RightHand",
-    "LeftUpperLeg","LeftLowerLeg","LeftFoot",
-    "RightUpperLeg","RightLowerLeg","RightFoot"
+    "HumanoidRootPart", "LowerTorso", "UpperTorso", "Head",
+    "LeftUpperArm", "LeftLowerArm", "LeftHand",
+    "RightUpperArm", "RightLowerArm", "RightHand",
+    "LeftUpperLeg", "LeftLowerLeg", "LeftFoot",
+    "RightUpperLeg", "RightLowerLeg", "RightFoot"
 }
 
--- Helpers to safely get UI values
-local function getDropdownValue(drop, default)
-    if drop and drop.Value and type(drop.Value) == "string" then
-        return drop.Value
+-- Helper to safely get dropdown values from Options
+local function safeGetDropdown(key, default)
+    if Options and Options[key] and Options[key].Value then
+        return Options[key].Value
     end
     return default
 end
-local function getColorPickerValue(picker, default)
-    if picker and picker.Value and typeof(picker.Value) == "Color3" then
-        return picker.Value
+-- Helper to safely get color picker
+local function safeGetColor(key, default)
+    if Options and Options[key] and Options[key].Value then
+        return Options[key].Value
     end
     return default
 end
@@ -58,66 +66,147 @@ end
 local mainGroup = Tabs.Main:AddLeftGroupbox('CamLock Settings')
 
 -- Cam toggle
-local camToggle = mainGroup:AddToggle('Cam',{Text='CamLock', Default=false, Tooltip='Enable camera lock', Callback=function(v)
-    camEnabled = v
-    if not camEnabled and not lockEnabled then
-        if connRender then connRender:Disconnect() connRender=nil end
-        if currentHighlight then currentHighlight:Destroy() currentHighlight=nil end
-        targetPlayer=nil; targetUserId=nil; waitingForRejoin=false; prevInAir=false
-        silentAim.isActive = false
-        btn.Text="🔓"
-        Library:Notify("Tanku:Unlocked from them")
+mainGroup:AddToggle('Cam', {
+    Text = 'CamLock',
+    Default = false,
+    Tooltip = 'Enable camera lock',
+    Callback = function(v)
+        camEnabled = v
+        if not camEnabled and not lockEnabled then
+            if connRender then connRender:Disconnect() connRender = nil end
+            if currentHighlight then currentHighlight:Destroy() currentHighlight = nil end
+            targetPlayer = nil; targetUserId = nil; waitingForRejoin = false; prevInAir = false
+            silentAim.isActive = false
+            btn.Text = "🔓"
+            Library:Notify("Tanku:Unlocked from them")
+        end
     end
-end})
+})
 
 -- Lock toggle
-local lockToggle = mainGroup:AddToggle('Lock',{Text='Lock', Default=false, Tooltip='Enable silent lock', Callback=function(v)
-    lockEnabled = v
-    silentAim.isActive = v
-    if not v and not camEnabled then
-        if connRender then connRender:Disconnect() connRender=nil end
-        if currentHighlight then currentHighlight:Destroy() currentHighlight=nil end
-        targetPlayer=nil; targetUserId=nil; waitingForRejoin=false; prevInAir=false
-        btn.Text="🔓"
-        Library:Notify("Tanku:Unlocked from them")
+mainGroup:AddToggle('Lock', {
+    Text = 'Lock',
+    Default = false,
+    Tooltip = 'Enable silent lock',
+    Callback = function(v)
+        lockEnabled = v
+        silentAim.isActive = v
+        if not v and not camEnabled then
+            if connRender then connRender:Disconnect() connRender = nil end
+            if currentHighlight then currentHighlight:Destroy() currentHighlight = nil end
+            targetPlayer = nil; targetUserId = nil; waitingForRejoin = false; prevInAir = false
+            btn.Text = "🔓"
+            Library:Notify("Tanku:Unlocked from them")
+        end
     end
-end})
+})
 
 -- Prediction inputs
-local predXInput = mainGroup:AddInput('PredX',{Default=tostring(predX), Numeric=true, Finished=false, Text='Cam Pred X', Tooltip='Prediction X for cam', Placeholder='0.139', Callback=function(val)
-    local n = tonumber(val)
-    if n then predX = n end
-end})
-local predYInput = mainGroup:AddInput('PredY',{Default=tostring(predY), Numeric=true, Finished=false, Text='Cam Pred Y', Tooltip='Prediction Y for cam', Placeholder='0.075', Callback=function(val)
-    local n = tonumber(val)
-    if n then predY = n end
-end})
-local hookPredInput = mainGroup:AddInput('HookPred',{Default=tostring(silentAim.prediction), Numeric=true, Finished=false, Text='Lock Pred', Tooltip='Prediction for silent lock', Placeholder='0.165', Callback=function(val)
-    local n = tonumber(val)
-    if n then silentAim.prediction = n end
-end})
+mainGroup:AddInput('PredX', {
+    Default = tostring(predX),
+    Numeric = true,
+    Finished = false,
+    Text = 'Cam Pred X',
+    Tooltip = 'Prediction X for cam',
+    Placeholder = '0.139',
+    Callback = function(val)
+        local n = tonumber(val)
+        if n then predX = n end
+    end
+})
+mainGroup:AddInput('PredY', {
+    Default = tostring(predY),
+    Numeric = true,
+    Finished = false,
+    Text = 'Cam Pred Y',
+    Tooltip = 'Prediction Y for cam',
+    Placeholder = '0.075',
+    Callback = function(val)
+        local n = tonumber(val)
+        if n then predY = n end
+    end
+})
+mainGroup:AddInput('HookPred', {
+    Default = tostring(silentAim.prediction),
+    Numeric = true,
+    Finished = false,
+    Text = 'Lock Pred',
+    Tooltip = 'Prediction for silent lock',
+    Placeholder = '0.165',
+    Callback = function(val)
+        local n = tonumber(val)
+        if n then silentAim.prediction = n end
+    end
+})
 
 -- Dropdowns for parts
-local aimDropdown = mainGroup:AddDropdown('AimPartDropdown',{Values=r15Parts, Default=1, Multi=false, Text='AimPart', Tooltip='Part for cam/lock on ground', Callback=function(val)
-    silentAim.targetPart = val or "HumanoidRootPart"
-end})
-local airDropdown = mainGroup:AddDropdown('AirPartDropdown',{Values=r15Parts, Default=1, Multi=false, Text='AirPart', Tooltip='Part for cam/lock in air', Callback=function(val
-    -- no extra var needed; fetched via getDropdownValue when needed
-end})
+mainGroup:AddDropdown('AimPartDropdown', {
+    Values = r15Parts,
+    Default = 1,
+    Multi = false,
+    Text = 'AimPart',
+    Tooltip = 'Part for cam/lock on ground',
+    Callback = function(val)
+        silentAim.targetPart = val or "HumanoidRootPart"
+    end
+})
+mainGroup:AddDropdown('AirPartDropdown', {
+    Values = r15Parts,
+    Default = 1,
+    Multi = false,
+    Text = 'AirPart',
+    Tooltip = 'Part for cam/lock in air',
+    Callback = function(val) end
+})
 
 -- Highlight color picker
-local highlightColorPicker = mainGroup:AddLabel('Highlight Color'):AddColorPicker('HighlightColor',{Default=Color3.new(1,0,0), Title='Highlight Color', Transparency=0, Callback=function(val) end})
+mainGroup:AddLabel('Highlight Color'):AddColorPicker('HighlightColor', {
+    Default = Color3.new(1,0,0),
+    Title = 'Highlight Color',
+    Transparency = 0,
+    Callback = function(val) end
+})
 
 -- Other toggles
-local wallToggle = mainGroup:AddToggle('WallCheck',{Text='WallCheck', Default=false, Tooltip='Skip blocked targets on acquire', Callback=function(v) wallCheckEnabled=v end})
-local friendToggle = mainGroup:AddToggle('FriendCheck',{Text='FriendCheck', Default=false, Tooltip='Skip friends', Callback=function(v) friendCheckEnabled=v end})
-local koToggle = mainGroup:AddToggle('KoCheck',{Text='KoCheck', Default=false, Tooltip='Unlock if Knocked attr true', Callback=function(v) koCheckEnabled=v end})
-local autoAirToggle = mainGroup:AddToggle('AutoAir',{Text='AutoAir', Default=false, Tooltip='Activate tool when target in air', Callback=function(v) autoAirEnabled=v end})
+mainGroup:AddToggle('WallCheck', {
+    Text = 'WallCheck',
+    Default = false,
+    Tooltip = 'Skip blocked targets on acquire',
+    Callback = function(v) wallCheckEnabled = v end
+})
+mainGroup:AddToggle('FriendCheck', {
+    Text = 'FriendCheck',
+    Default = false,
+    Tooltip = 'Skip friends',
+    Callback = function(v) friendCheckEnabled = v end
+})
+mainGroup:AddToggle('KoCheck', {
+    Text = 'KoCheck',
+    Default = false,
+    Tooltip = 'Unlock if Knocked attr true',
+    Callback = function(v) koCheckEnabled = v end
+})
+mainGroup:AddToggle('AutoAir', {
+    Text = 'AutoAir',
+    Default = false,
+    Tooltip = 'Activate tool when target in air',
+    Callback = function(v) autoAirEnabled = v end
+})
 
 -- MISC TAB UI
 local miscGroup = Tabs.Misc:AddLeftGroupbox('Misc Settings')
-local autoArmorToggle = miscGroup:AddToggle('AutoArmor',{Text='Auto Armor', Default=false, Tooltip='Spam armor pad', Callback=function(v) autoArmorEnabled=v end})
-local autoReloadToggle = miscGroup:AddToggle('AutoReload',{Text='Auto Reload', Default=false, Tooltip='Auto reload when ammo hits zero', Callback=function(v) autoReloadEnabled=v end})
+miscGroup:AddToggle('AutoArmor', {
+    Text = 'Auto Armor',
+    Default = false,
+    Tooltip = 'Spam armor pad',
+    Callback = function(v) autoArmorEnabled = v end
+})
+miscGroup:AddToggle('AutoReload', {
+    Text = 'Auto Reload',
+    Default = false,
+    Tooltip = 'Auto reload when ammo hits zero',
+    Callback = function(v) autoReloadEnabled = v end
+})
 
 -- UI Settings
 ThemeManager:SetLibrary(Library)
@@ -143,8 +232,8 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = game:GetService("CoreGui")
 
 local btn = Instance.new("TextButton")
-btn.Size = UDim2.new(0,90,0,90)  -- slightly bigger by 10
-btn.Position = UDim2.new(0,10,0,100)
+btn.Size = UDim2.new(0, 90, 0, 90)  -- slightly bigger
+btn.Position = UDim2.new(0, 10, 0, 100)
 btn.AnchorPoint = Vector2.new(0,0)
 btn.BackgroundTransparency = 0.3
 btn.BackgroundColor3 = Color3.new(0,0,0)
@@ -154,7 +243,7 @@ btn.TextScaled = true
 btn.Parent = screenGui
 
 local uiCorner = Instance.new("UICorner")
-uiCorner.CornerRadius = UDim.new(0,9)  -- pixel radius 9
+uiCorner.CornerRadius = UDim.new(0, 9)  -- radius 9
 uiCorner.Parent = btn
 
 -- Watermark
@@ -178,7 +267,7 @@ local function destroyHighlight()
 end
 local function applyHighlight(char)
     destroyHighlight()
-    local col = getColorPickerValue(highlightColorPicker, Color3.new(1,0,0))
+    local col = safeGetColor("HighlightColor", Color3.new(1,0,0))
     local h = Instance.new("Highlight")
     h.Adornee = char
     h.FillTransparency = 0.5
@@ -266,8 +355,8 @@ local function startRenderSteppedLock(pl)
             prevInAir = false
         end
         -- Determine part name safely
-        local aimPartName = getDropdownValue(aimDropdown, "HumanoidRootPart")
-        local airPartName = getDropdownValue(airDropdown, aimPartName)
+        local aimPartName = safeGetDropdown("AimPartDropdown", "HumanoidRootPart")
+        local airPartName = safeGetDropdown("AirPartDropdown", aimPartName)
         local partName = inAir and airPartName or aimPartName
         local rootPart = char:FindFirstChild(partName)
         if not rootPart then
@@ -278,7 +367,7 @@ local function startRenderSteppedLock(pl)
         applyHighlight(char)
         -- CamLock
         if camEnabled then
-            local vel = rootPart.Velocity
+            local vel = rootPart.Velocity or Vector3.new(0,0,0)
             local fallOffset = 0
             if vel.Y < 0 then fallOffset = -0.27 end
             local offset = Vector3.new(vel.X * predX, vel.Y * predY + fallOffset, vel.Z * predX)
@@ -302,7 +391,7 @@ local function attemptLockOn(pl)
         return
     end
     if wallCheckEnabled then
-        local root = pl.Character and pl.Character:FindFirstChild(getDropdownValue(aimDropdown, "HumanoidRootPart"))
+        local root = pl.Character and pl.Character:FindFirstChild(safeGetDropdown("AimPartDropdown", "HumanoidRootPart"))
         if root and raycastBlock(cam.CFrame.Position, root.Position) then
             Library:Notify("Wall blocks "..pl.Name..", skipping")
             return
@@ -361,7 +450,7 @@ btn.MouseButton1Click:Connect(function()
             if friendCheckEnabled and LocalPlayer:IsFriendsWith(pl.UserId) then
                 continue
             end
-            local root = pl.Character:FindFirstChild(getDropdownValue(aimDropdown, "HumanoidRootPart")) or pl.Character:FindFirstChild("HumanoidRootPart")
+            local root = pl.Character:FindFirstChild(safeGetDropdown("AimPartDropdown", "HumanoidRootPart")) or pl.Character:FindFirstChild("HumanoidRootPart")
             if not root then
                 continue
             end
@@ -471,7 +560,7 @@ mt2.__namecall = newcclosure(function(...)
                     local humanoid = char:FindFirstChildWhichIsA("Humanoid")
                     local floorMat = (humanoid and humanoid.FloorMaterial) or Enum.Material.Air
                     local aimPartName = silentAim.targetPart or "HumanoidRootPart"
-                    local airPartName = getDropdownValue(airDropdown, aimPartName)
+                    local airPartName = safeGetDropdown("AirPartDropdown", aimPartName)
                     local partName = (floorMat == Enum.Material.Air) and airPartName or aimPartName
                     local root = char:FindFirstChild(partName)
                     if root then
