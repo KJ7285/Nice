@@ -1,34 +1,125 @@
+-- Load libraries
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Mc4121ban/Linoria-Library-Mobile/refs/heads/main/Gui%20Lib%20%5BLibrary%5D"))()
 local ThemeManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/KJ7285/Theme-manger-/refs/heads/main/ThemeManager.Lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/Mc4121ban/Linoria-Library-Mobile/refs/heads/main/Gui%20Lib%20%5BSaveManager%5D"))()
-local Window = Library:CreateWindow({Title='[MoonLight]🌙',Center=true,AutoShow=true,TabPadding=8,MenuFadeTime=0.2,Size=UDim2.new(0,450,0,450)})
-local Tabs={Main=Window:AddTab('Main'),Misc=Window:AddTab('Misc'),['UI Settings']=Window:AddTab('UI Settings')}
-local predX,predY=0.13946352838245239,0.075
-local camEnabled,lockEnabled=false,false
-local targetPlayer,targetUserId=nil,nil
-local waitingForRejoin=false
-local connRender,currentHighlight=nil,nil
-local wallCheckEnabled,friendCheckEnabled,koCheckEnabled=false,false,false
-local autoAirEnabled,prevInAir=false,false
-local autoArmorEnabled,autoReloadEnabled=false,false
-local silentAim={isActive=false,targetPart="HumanoidRootPart",prediction=0.165}
-local r15Parts={"HumanoidRootPart","LowerTorso","UpperTorso","Head","LeftUpperArm","LeftLowerArm","LeftHand","RightUpperArm","RightLowerArm","RightHand","LeftUpperLeg","LeftLowerLeg","LeftFoot","RightUpperLeg","RightLowerLeg","RightFoot"}
-local mainGroup=Tabs.Main:AddLeftGroupbox('CamLock Settings')
-mainGroup:AddToggle('Cam',{Text='CamLock',Default=false,Tooltip='Enable camera lock',Callback=function(v)camEnabled=v end})
-mainGroup:AddToggle('Lock',{Text='Lock',Default=false,Tooltip='Enable silent lock',Callback=function(v)lockEnabled=v silentAim.isActive=v if not v then targetPlayer=nil end end})
-mainGroup:AddInput('PredX',{Text='Cam Pred X',Default=tostring(predX),Numeric=true,Placeholder='e.g. 0.139',Callback=function(val)predX=tonumber(val) or predX end})
-mainGroup:AddInput('PredY',{Text='Cam Pred Y',Default=tostring(predY),Numeric=true,Placeholder='e.g. 0.075',Callback=function(val)predY=tonumber(val) or predY end})
-mainGroup:AddInput('HookPred',{Text='Lock Pred',Default=tostring(silentAim.prediction),Numeric=true,Placeholder='e.g. 0.165',Callback=function(val)silentAim.prediction=tonumber(val) or silentAim.prediction end})
-mainGroup:AddDropdown('AimPartDropdown',{Values=r15Parts,Default=1,Text='AimPart',Tooltip='Part for cam/lock on ground',Callback=function(val)silentAim.targetPart=val end})
-mainGroup:AddDropdown('AirPartDropdown',{Values=r15Parts,Default=1,Text='AirPart',Tooltip='Part for cam/lock in air',Callback=function(val)end})
-local highlightPicker=mainGroup:AddLabel('Highlight Color'):AddColorPicker('HighlightColor',{Default=Color3.new(1,0,0),Title='Highlight Color',Transparency=0,Callback=function(val)end})
-mainGroup:AddToggle('WallCheck',{Text='WallCheck',Default=false,Tooltip='Skip blocked targets',Callback=function(v)wallCheckEnabled=v end})
-mainGroup:AddToggle('FriendCheck',{Text='FriendCheck',Default=false,Tooltip='Skip friends',Callback=function(v)friendCheckEnabled=v end})
-mainGroup:AddToggle('KoCheck',{Text='KoCheck',Default=false,Tooltip='Skip knocked targets',Callback=function(v)koCheckEnabled=v end})
-mainGroup:AddToggle('AutoAir',{Text='AutoAir',Default=false,Tooltip='Activate tool when target in air',Callback=function(v)autoAirEnabled=v end})
-local miscGroup=Tabs.Misc:AddLeftGroupbox('Misc Settings')
-miscGroup:AddToggle('AutoArmor',{Text='Auto Armor',Default=false,Tooltip='Spam armor pad',Callback=function(v)autoArmorEnabled=v end})
-miscGroup:AddToggle('AutoReload',{Text='Auto Reload',Default=false,Tooltip='Auto reload when ammo hits zero',Callback=function(v)autoReloadEnabled=v end})
+
+-- Create window
+local Window = Library:CreateWindow({Title='[MoonLight]🌙', Center=true, AutoShow=true, TabPadding=8, MenuFadeTime=0.2, Size=UDim2.new(0,450,0,450)})
+local Tabs = {
+    Main = Window:AddTab('Main'),
+    Misc = Window:AddTab('Misc'),
+    ['UI Settings'] = Window:AddTab('UI Settings'),
+}
+
+-- Config vars
+local predX = 0.13946352838245239252
+local predY = 0.075
+local camEnabled = false
+local lockEnabled = false
+local targetPlayer = nil
+local targetUserId = nil
+local waitingForRejoin = false
+local connRender = nil
+local currentHighlight = nil
+local wallCheckEnabled = false
+local friendCheckEnabled = false
+local koCheckEnabled = false
+local autoAirEnabled = false
+local prevInAir = false
+local autoArmorEnabled = false
+local autoReloadEnabled = false
+-- silentAim config
+local silentAim = {isActive=false, targetPart="HumanoidRootPart", prediction=0.165}
+
+-- R15 parts list
+local r15Parts = {
+    "HumanoidRootPart","LowerTorso","UpperTorso","Head",
+    "LeftUpperArm","LeftLowerArm","LeftHand",
+    "RightUpperArm","RightLowerArm","RightHand",
+    "LeftUpperLeg","LeftLowerLeg","LeftFoot",
+    "RightUpperLeg","RightLowerLeg","RightFoot"
+}
+
+-- Helpers to safely get UI values
+local function getDropdownValue(drop, default)
+    if drop and drop.Value and type(drop.Value) == "string" then
+        return drop.Value
+    end
+    return default
+end
+local function getColorPickerValue(picker, default)
+    if picker and picker.Value and typeof(picker.Value) == "Color3" then
+        return picker.Value
+    end
+    return default
+end
+
+-- MAIN TAB UI
+local mainGroup = Tabs.Main:AddLeftGroupbox('CamLock Settings')
+
+-- Cam toggle
+local camToggle = mainGroup:AddToggle('Cam',{Text='CamLock', Default=false, Tooltip='Enable camera lock', Callback=function(v)
+    camEnabled = v
+    if not camEnabled and not lockEnabled then
+        if connRender then connRender:Disconnect() connRender=nil end
+        if currentHighlight then currentHighlight:Destroy() currentHighlight=nil end
+        targetPlayer=nil; targetUserId=nil; waitingForRejoin=false; prevInAir=false
+        silentAim.isActive = false
+        btn.Text="🔓"
+        Library:Notify("Tanku:Unlocked from them")
+    end
+end})
+
+-- Lock toggle
+local lockToggle = mainGroup:AddToggle('Lock',{Text='Lock', Default=false, Tooltip='Enable silent lock', Callback=function(v)
+    lockEnabled = v
+    silentAim.isActive = v
+    if not v and not camEnabled then
+        if connRender then connRender:Disconnect() connRender=nil end
+        if currentHighlight then currentHighlight:Destroy() currentHighlight=nil end
+        targetPlayer=nil; targetUserId=nil; waitingForRejoin=false; prevInAir=false
+        btn.Text="🔓"
+        Library:Notify("Tanku:Unlocked from them")
+    end
+end})
+
+-- Prediction inputs
+local predXInput = mainGroup:AddInput('PredX',{Default=tostring(predX), Numeric=true, Finished=false, Text='Cam Pred X', Tooltip='Prediction X for cam', Placeholder='0.139', Callback=function(val)
+    local n = tonumber(val)
+    if n then predX = n end
+end})
+local predYInput = mainGroup:AddInput('PredY',{Default=tostring(predY), Numeric=true, Finished=false, Text='Cam Pred Y', Tooltip='Prediction Y for cam', Placeholder='0.075', Callback=function(val)
+    local n = tonumber(val)
+    if n then predY = n end
+end})
+local hookPredInput = mainGroup:AddInput('HookPred',{Default=tostring(silentAim.prediction), Numeric=true, Finished=false, Text='Lock Pred', Tooltip='Prediction for silent lock', Placeholder='0.165', Callback=function(val)
+    local n = tonumber(val)
+    if n then silentAim.prediction = n end
+end})
+
+-- Dropdowns for parts
+local aimDropdown = mainGroup:AddDropdown('AimPartDropdown',{Values=r15Parts, Default=1, Multi=false, Text='AimPart', Tooltip='Part for cam/lock on ground', Callback=function(val)
+    silentAim.targetPart = val or "HumanoidRootPart"
+end})
+local airDropdown = mainGroup:AddDropdown('AirPartDropdown',{Values=r15Parts, Default=1, Multi=false, Text='AirPart', Tooltip='Part for cam/lock in air', Callback=function(val
+    -- no extra var needed; fetched via getDropdownValue when needed
+end})
+
+-- Highlight color picker
+local highlightColorPicker = mainGroup:AddLabel('Highlight Color'):AddColorPicker('HighlightColor',{Default=Color3.new(1,0,0), Title='Highlight Color', Transparency=0, Callback=function(val) end})
+
+-- Other toggles
+local wallToggle = mainGroup:AddToggle('WallCheck',{Text='WallCheck', Default=false, Tooltip='Skip blocked targets on acquire', Callback=function(v) wallCheckEnabled=v end})
+local friendToggle = mainGroup:AddToggle('FriendCheck',{Text='FriendCheck', Default=false, Tooltip='Skip friends', Callback=function(v) friendCheckEnabled=v end})
+local koToggle = mainGroup:AddToggle('KoCheck',{Text='KoCheck', Default=false, Tooltip='Unlock if Knocked attr true', Callback=function(v) koCheckEnabled=v end})
+local autoAirToggle = mainGroup:AddToggle('AutoAir',{Text='AutoAir', Default=false, Tooltip='Activate tool when target in air', Callback=function(v) autoAirEnabled=v end})
+
+-- MISC TAB UI
+local miscGroup = Tabs.Misc:AddLeftGroupbox('Misc Settings')
+local autoArmorToggle = miscGroup:AddToggle('AutoArmor',{Text='Auto Armor', Default=false, Tooltip='Spam armor pad', Callback=function(v) autoArmorEnabled=v end})
+local autoReloadToggle = miscGroup:AddToggle('AutoReload',{Text='Auto Reload', Default=false, Tooltip='Auto reload when ammo hits zero', Callback=function(v) autoReloadEnabled=v end})
+
+-- UI Settings
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
@@ -37,147 +128,363 @@ SaveManager:SetFolder('MoonLight/specific-game')
 SaveManager:BuildConfigSection(Tabs['UI Settings'])
 ThemeManager:ApplyToTab(Tabs['UI Settings'])
 SaveManager:LoadAutoloadConfig()
-local Players=game:GetService("Players")
-local LocalPlayer=Players.LocalPlayer
-local RunService=game:GetService("RunService")
-local UserInputService=game:GetService("UserInputService")
-local cam=workspace.CurrentCamera
-local screenGui=Instance.new("ScreenGui",game:GetService("CoreGui"))
-screenGui.Name="CamLockGui"
-screenGui.ResetOnSpawn=false
-local btn=Instance.new("TextButton",screenGui)
-btn.Size=UDim2.new(0,90,0,90)
-btn.Position=UDim2.new(0,10,0,100)
-btn.AnchorPoint=Vector2.new(0,0)
-btn.BackgroundTransparency=0.3
-btn.BackgroundColor3=Color3.new(0,0,0)
-btn.BorderSizePixel=0
-btn.Text="🔓"
-btn.TextScaled=true
-Instance.new("UICorner",btn).CornerRadius=UDim.new(0,9)
-do
- local ft,fc,fps=tick(),0,60
- RunService.RenderStepped:Connect(function()
-  fc+=1
-  if tick()-ft>=1 then fps=fc fc=0 ft=tick() end
-  Library:SetWatermark(('MoonLight 🌙 | %s fps'):format(math.floor(fps)))
- end)
-end
+
+-- Services
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local cam = workspace.CurrentCamera
+
+-- On-screen button
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CamLockGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = game:GetService("CoreGui")
+
+local btn = Instance.new("TextButton")
+btn.Size = UDim2.new(0,90,0,90)  -- slightly bigger by 10
+btn.Position = UDim2.new(0,10,0,100)
+btn.AnchorPoint = Vector2.new(0,0)
+btn.BackgroundTransparency = 0.3
+btn.BackgroundColor3 = Color3.new(0,0,0)
+btn.BorderSizePixel = 0
+btn.Text = "🔓"
+btn.TextScaled = true
+btn.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0,9)  -- pixel radius 9
+uiCorner.Parent = btn
+
+-- Watermark
+local FrameTimer, FrameCounter, FPS = tick(), 0, 60
+RunService.RenderStepped:Connect(function()
+    FrameCounter += 1
+    if tick() - FrameTimer >= 1 then
+        FPS = FrameCounter
+        FrameTimer = tick()
+        FrameCounter = 0
+    end
+    Library:SetWatermark(('MoonLight 🌙 | %s fps'):format(math.floor(FPS)))
+end)
+
+-- Highlight helpers
 local function destroyHighlight()
- if currentHighlight then currentHighlight:Destroy() currentHighlight=nil end
+    if currentHighlight then
+        currentHighlight:Destroy()
+        currentHighlight = nil
+    end
 end
 local function applyHighlight(char)
- destroyHighlight()
- local h=Instance.new("Highlight")
- h.Adornee=char
- h.FillTransparency=0.5
- h.OutlineTransparency=0
- h.OutlineColor=highlightPicker.Value or Color3.new(1,0,0)
- h.Parent=char
- currentHighlight=h
+    destroyHighlight()
+    local col = getColorPickerValue(highlightColorPicker, Color3.new(1,0,0))
+    local h = Instance.new("Highlight")
+    h.Adornee = char
+    h.FillTransparency = 0.5
+    h.OutlineTransparency = 0
+    h.OutlineColor = col
+    h.Parent = char
+    currentHighlight = h
 end
-local function raycastBlock(o,p)
- local params=RaycastParams.new()
- params.FilterType=Enum.RaycastFilterType.Blacklist
- params.FilterDescendantsInstances={LocalPlayer.Character}
- if targetPlayer and targetPlayer.Character then table.insert(params.FilterDescendantsInstances,targetPlayer.Character) end
- return workspace:Raycast(o,p-o,params)~=nil
-end
-local function stopLock()
- if connRender then connRender:Disconnect() connRender=nil end
- destroyHighlight()
- targetPlayer=nil
- targetUserId=nil
- waitingForRejoin=false
- prevInAir=false
- silentAim.isActive=false
- btn.Text="🔓"
- Library:Notify("Unlocked 🤘")
-end
-local function startRenderSteppedLock(pl)
- if connRender then connRender:Disconnect() end
- connRender=RunService.RenderStepped:Connect(function()
-  if not(camEnabled or lockEnabled) or not targetPlayer then stopLock() return end
-  local char=targetPlayer.Character
-  if not char or (char:FindFirstChild("Humanoid")or{Health=0}).Health<=0 then waitingForRejoin=true return end
-  if koCheckEnabled and char:GetAttribute("Knocked") then stopLock() return end
-  local humanoid=char:FindFirstChild("Humanoid")
-  local inAir=humanoid and humanoid.FloorMaterial==Enum.Material.Air
-  if inAir and autoAirEnabled and not prevInAir then prevInAir=true task.delay(0.2,function() local tool=LocalPlayer.Character:FindFirstChildOfClass("Tool") if tool then tool:Activate() end end)
-  elseif not inAir then prevInAir=false end
-  local partName=inAir and airDropdown.Value or aimDropdown.Value
-  local root=char:FindFirstChild(partName)
-  if not root then waitingForRejoin=true return end
-  waitingForRejoin=false
-  applyHighlight(char)
-  if camEnabled then local v=root.Velocity local fo=v.Y<0 and -0.27 or 0 local off=Vector3.new(v.X*predX,v.Y*predY+fo,v.Z*predX) cam.CFrame=CFrame.new(cam.CFrame.Position,root.Position+off) end
-  if lockEnabled then silentAim.isActive=true end
- end)
-end
-local function attemptLockOn(pl)
- if not(camEnabled or lockEnabled) then Library:Notify("Enable CamLock or Lock first 🤨") return end
- if friendCheckEnabled and LocalPlayer:IsFriendsWith(pl.UserId) then Library:Notify("Skipping friend "..pl.Name) return end
- if wallCheckEnabled then local root=pl.Character and pl.Character:FindFirstChild(aimDropdown.Value) if root and raycastBlock(cam.CFrame.Position,root.Position) then Library:Notify("Blocked by wall, skipping "..pl.Name) return end end
- targetPlayer=pl
- targetUserId=pl.UserId
- prevInAir=false
- silentAim.isActive=lockEnabled
- btn.Text="🔒"
- Library:Notify("Locked in "..pl.Name)
- startRenderSteppedLock(pl)
-end
-do
- local dragging=false; local di,ds,sp
- btn.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then dragging=true ds=i.Position sp=btn.Position i.Changed:Connect(function() if i.UserInputState==Enum.UserInputState.End then dragging=false end end) end end)
- btn.InputChanged:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch then di=i end end)
- UserInputService.InputChanged:Connect(function(i) if dragging and i==di then local d=i.Position-ds btn.Position=UDim2.new(sp.X.Scale,sp.X.Offset+d.X,sp.Y.Scale,sp.Y.Offset+d.Y) end end)
-end
-btn.MouseButton1Click:Connect(function()
- if targetPlayer then local c=targetPlayer.Character local h=c and c:FindFirstChild("Humanoid") if c and h and h.Health>0 then stopLock() return end end
- local closest,minD=nil,math.huge
- for _,pl in ipairs(Players:GetPlayers()) do
-  if pl~=LocalPlayer and pl.Character and pl.Character:FindFirstChild("HumanoidRootPart") then
-   local h=pl.Character:FindFirstChild("Humanoid") if h and h.Health>0 then
-    if friendCheckEnabled and LocalPlayer:IsFriendsWith(pl.UserId) then continue end
-    local root=pl.Character:FindFirstChild(aimDropdown.Value) or pl.Character.HumanoidRootPart
-    if root then local sp,vis=cam:WorldToViewportPoint(root.Position) if vis then local dx,dy=sp.X-cam.ViewportSize.X/2,sp.Y-cam.ViewportSize.Y/2 local d=math.sqrt(dx*dx+dy*dy) if d<minD then minD,closest=d,pl end end end
-   end
-  end
- end
- if closest then attemptLockOn(closest) else Library:Notify("No valid target found 🤷‍♂️") end
-end)
-Players.PlayerRemoving:Connect(function(pl) if targetPlayer==pl then waitingForRejoin=true end end)
-Players.PlayerAdded:Connect(function(pl) if waitingForRejoin and pl.UserId==targetUserId then pl.CharacterAdded:Connect(function(c) if(camEnabled or lockEnabled)and pl.UserId==targetUserId then task.wait(0.5) if c:FindFirstChild("HumanoidRootPart") then targetPlayer=pl startRenderSteppedLock(pl) Library:Notify("Re-locked "..pl.Name) end end end) end end)
-task.spawn(function() while task.wait(0.1) do if autoArmorEnabled then local pad=workspace:FindFirstChild("MAP")and workspace.MAP.Pads:FindFirstChild("[Medium Armor]") if pad and pad:FindFirstChild("ClickDetector") then fireclickdetector(pad.ClickDetector) end end end end)
-local function setupAmmoWatcher(tool) if not tool or not tool:IsA("Tool") then return end local ammo=tool:FindFirstChild("AMMO") if ammo and not ammo:GetAttribute("WatcherConnected") then ammo:SetAttribute("WatcherConnected",true) ammo.Changed:Connect(function() if autoReloadEnabled and ammo.Value<=0 then if tool:FindFirstChild("rl") then tool.rl:FireServer() end end end) end end
-Players.LocalPlayer.CharacterAdded:Connect(function(c) c.ChildAdded:Connect(setupAmmoWatcher) for _,v in ipairs(c:GetChildren())do setupAmmoWatcher(v)end end)
-for _,v in ipairs(LocalPlayer.Backpack:GetChildren())do setupAmmoWatcher(v)end
-LocalPlayer.Backpack.ChildAdded:Connect(setupAmmoWatcher)
-game:GetService("StarterGui"):SetCore("SendNotification",{Title="MoonLight Loaded",Text="Enjoy 🌙"})
-do
- local mt=getrawmetatable(game)
- local oldNI=mt.__newindex
- setreadonly(mt,false)
- mt.__newindex=newcclosure(function(self,k,v) if not checkcaller() and self:IsA("Humanoid") and k=="JumpPower" then return end return oldNI(self,k,v) end)
- setreadonly(mt,true)
-end
-do
- local mt=getrawmetatable(game)
- local oldNC=mt.__namecall
- setreadonly(mt,false)
- local methods={"UpdateMousePos","GetMousePos","MousePos","MOUSE","MousePosUpdate","UpdateMousePosI"}
- mt.__namecall=newcclosure(function(...)
-  local args={...}
-  if silentAim.isActive and targetPlayer and targetPlayer.Character and getnamecallmethod()=="FireServer" then
-   for _,m in ipairs(methods)do
-    if args[2]==m then
-     local p=targetPlayer.Character:FindFirstChild(silentAim.targetPart)
-     if p then local v=p.Velocity local fo=v.Y<0 and -0.27 or 0 args[3]=p.Position+(v*silentAim.prediction)+Vector3.new(0,fo,0) end
-     break
+
+-- Raycast for wall check
+local function raycastBlock(origin, pos)
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    local ignoreList = {LocalPlayer.Character}
+    if targetPlayer and targetPlayer.Character then
+        table.insert(ignoreList, targetPlayer.Character)
     end
-   end
-  end
-  return oldNC(table.unpack(args))
- end)
- setreadonly(mt,true)
+    params.FilterDescendantsInstances = ignoreList
+    local result = workspace:Raycast(origin, pos - origin, params)
+    return result ~= nil
 end
+
+-- Stop cam/lock
+local function stopLock()
+    if connRender then
+        connRender:Disconnect()
+        connRender = nil
+    end
+    destroyHighlight()
+    targetPlayer = nil
+    targetUserId = nil
+    waitingForRejoin = false
+    prevInAir = false
+    silentAim.isActive = false
+    btn.Text = "🔓"
+    Library:Notify("Tanku:Unlocked from them")
+end
+
+-- Main loop for cam & lock
+local function startRenderSteppedLock(pl)
+    if connRender then
+        connRender:Disconnect()
+        connRender = nil
+    end
+    connRender = RunService.RenderStepped:Connect(function()
+        if not (camEnabled or lockEnabled) then
+            stopLock()
+            return
+        end
+        if not targetPlayer then
+            stopLock()
+            return
+        end
+        local char = targetPlayer.Character
+        if not char then
+            waitingForRejoin = true
+            return
+        end
+        local humanoid = char:FindFirstChild("Humanoid")
+        if not humanoid or humanoid.Health <= 0 then
+            waitingForRejoin = true
+            return
+        end
+        if koCheckEnabled then
+            local knocked = char:GetAttribute("Knocked")
+            if knocked then
+                stopLock()
+                return
+            end
+        end
+        local floorMat = humanoid.FloorMaterial or Enum.Material.Air
+        local inAir = (floorMat == Enum.Material.Air)
+        -- AutoAir
+        if inAir and autoAirEnabled and not prevInAir then
+            prevInAir = true
+            task.delay(0.2, function()
+                if targetPlayer and LocalPlayer.Character then
+                    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                    if tool and tool.Parent == LocalPlayer.Character then
+                        tool:Activate()
+                    end
+                end
+            end)
+        elseif not inAir then
+            prevInAir = false
+        end
+        -- Determine part name safely
+        local aimPartName = getDropdownValue(aimDropdown, "HumanoidRootPart")
+        local airPartName = getDropdownValue(airDropdown, aimPartName)
+        local partName = inAir and airPartName or aimPartName
+        local rootPart = char:FindFirstChild(partName)
+        if not rootPart then
+            waitingForRejoin = true
+            return
+        end
+        waitingForRejoin = false
+        applyHighlight(char)
+        -- CamLock
+        if camEnabled then
+            local vel = rootPart.Velocity
+            local fallOffset = 0
+            if vel.Y < 0 then fallOffset = -0.27 end
+            local offset = Vector3.new(vel.X * predX, vel.Y * predY + fallOffset, vel.Z * predX)
+            cam.CFrame = CFrame.new(cam.CFrame.Position, rootPart.Position + offset)
+        end
+        -- Silent lock: ensure isActive stays true if lockEnabled
+        if lockEnabled then
+            silentAim.isActive = true
+        end
+    end)
+end
+
+-- Acquire nearest target
+local function attemptLockOn(pl)
+    if not (camEnabled or lockEnabled) then
+        Library:Notify("Enable CamLock or Lock first 😏")
+        return
+    end
+    if friendCheckEnabled and LocalPlayer:IsFriendsWith(pl.UserId) then
+        Library:Notify("Skipping friend "..pl.Name)
+        return
+    end
+    if wallCheckEnabled then
+        local root = pl.Character and pl.Character:FindFirstChild(getDropdownValue(aimDropdown, "HumanoidRootPart"))
+        if root and raycastBlock(cam.CFrame.Position, root.Position) then
+            Library:Notify("Wall blocks "..pl.Name..", skipping")
+            return
+        end
+    end
+    targetPlayer = pl
+    targetUserId = pl.UserId
+    prevInAir = false
+    silentAim.isActive = lockEnabled
+    btn.Text = "🔒"
+    Library:Notify("Tanku:Locked in "..pl.Name)
+    waitingForRejoin = false
+    startRenderSteppedLock(pl)
+end
+
+-- Button dragging
+local dragging = false
+local dragInput, dragStart, startPos
+btn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = btn.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+btn.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Button click: acquire or release
+btn.MouseButton1Click:Connect(function()
+    if targetPlayer then
+        local char = targetPlayer.Character
+        local humanoid = char and char:FindFirstChild("Humanoid")
+        if char and humanoid and humanoid.Health > 0 then
+            stopLock()
+            return
+        end
+    end
+    local closest, minDist = nil, math.huge
+    for _, pl in pairs(Players:GetPlayers()) do
+        if pl ~= LocalPlayer and pl.Character and pl.Character:FindFirstChild("HumanoidRootPart") and pl.Character:FindFirstChild("Humanoid") and pl.Character.Humanoid.Health > 0 then
+            if friendCheckEnabled and LocalPlayer:IsFriendsWith(pl.UserId) then
+                continue
+            end
+            local root = pl.Character:FindFirstChild(getDropdownValue(aimDropdown, "HumanoidRootPart")) or pl.Character:FindFirstChild("HumanoidRootPart")
+            if not root then
+                continue
+            end
+            local screenPos, vis = cam:WorldToViewportPoint(root.Position)
+            if vis then
+                local dx = screenPos.X - cam.ViewportSize.X/2
+                local dy = screenPos.Y - cam.ViewportSize.Y/2
+                local dist = math.sqrt(dx*dx + dy*dy)
+                if dist < minDist then
+                    minDist = dist
+                    closest = pl
+                end
+            end
+        end
+    end
+    if closest then
+        attemptLockOn(closest)
+    else
+        Library:Notify("No valid target found 🤷‍♂️")
+    end
+end)
+
+-- Handle leaving/rejoining
+Players.PlayerRemoving:Connect(function(pl)
+    if targetPlayer and pl == targetPlayer then waitingForRejoin = true end
+end)
+Players.PlayerAdded:Connect(function(pl)
+    if waitingForRejoin and targetUserId == pl.UserId then
+        pl.CharacterAdded:Connect(function(char)
+            if (camEnabled or lockEnabled) and targetUserId == pl.UserId then
+                task.wait(0.5)
+                if pl.Character and pl.Character:FindFirstChild("HumanoidRootPart") then
+                    targetPlayer = pl
+                    startRenderSteppedLock(pl)
+                    Library:Notify("Tanku:Re-locked "..pl.Name)
+                end
+            end
+        end)
+    end
+end)
+Players.LocalPlayer.CharacterAdded:Connect(function() end)
+
+-- Auto Armor
+task.spawn(function()
+    while task.wait(0.1) do
+        if autoArmorEnabled then
+            local pad = workspace:FindFirstChild("MAP") and workspace.MAP.Pads:FindFirstChild("[Medium Armor]")
+            if pad and pad:FindFirstChild("ClickDetector") then
+                pcall(function() fireclickdetector(pad.ClickDetector) end)
+            end
+        end
+    end
+end)
+
+-- Auto Reload
+local function setupAmmoWatcher(tool)
+    if not tool or not tool:IsA("Tool") then return end
+    local ammo = tool:FindFirstChild("AMMO")
+    if ammo and not ammo:GetAttribute("WatcherConnected") then
+        ammo:SetAttribute("WatcherConnected", true)
+        ammo.Changed:Connect(function()
+            if autoReloadEnabled then
+                local val = ammo.Value
+                if val and val <= 0 then
+                    if tool:FindFirstChild("rl") then
+                        pcall(function() tool.rl:FireServer() end)
+                    end
+                end
+            end
+        end)
+    end
+end
+Players.LocalPlayer.CharacterAdded:Connect(function(char)
+    char.ChildAdded:Connect(function(c) setupAmmoWatcher(c) end)
+    for _,c in pairs(char:GetChildren()) do setupAmmoWatcher(c) end
+end)
+for _,tool in pairs(LocalPlayer.Backpack:GetChildren()) do setupAmmoWatcher(tool) end
+LocalPlayer.Backpack.ChildAdded:Connect(function(c) setupAmmoWatcher(c) end)
+pcall(function()
+    game:GetService("StarterGui"):SetCore("SendNotification",{Title="MoonLight Loaded",Text="Enjoy 🌙"})
+end)
+
+-- No jump cooldown
+local mt = getrawmetatable(game)
+local oldNewIndex = mt.__newindex
+setreadonly(mt,false)
+mt.__newindex = newcclosure(function(self, Index, Value)
+    if not checkcaller() and typeof(self)=="Instance" and self:IsA and self:IsA("Humanoid") and Index=="JumpPower" then
+        return
+    end
+    return oldNewIndex(self, Index, Value)
+end)
+setreadonly(mt,true)
+
+-- Silent lock hook: use silentAim.isActive and targetPlayer
+local mt2 = getrawmetatable(game)
+local oldNamecall = mt2.__namecall
+setreadonly(mt2,false)
+mt2.__namecall = newcclosure(function(...)
+    local args = {...}
+    local method = getnamecallmethod()
+    if silentAim.isActive and targetPlayer and targetPlayer.Character and method == "FireServer" then
+        for _,m in ipairs({"UpdateMousePos","GetMousePos","MousePos","MOUSE","MousePosUpdate","UpdateMousePosI"}) do
+            if args[2] == m then
+                local char = targetPlayer.Character
+                if char then
+                    local humanoid = char:FindFirstChildWhichIsA("Humanoid")
+                    local floorMat = (humanoid and humanoid.FloorMaterial) or Enum.Material.Air
+                    local aimPartName = silentAim.targetPart or "HumanoidRootPart"
+                    local airPartName = getDropdownValue(airDropdown, aimPartName)
+                    local partName = (floorMat == Enum.Material.Air) and airPartName or aimPartName
+                    local root = char:FindFirstChild(partName)
+                    if root then
+                        local vel = root.Velocity or Vector3.new(0,0,0)
+                        local fallOffset = 0
+                        if vel.Y < 0 then fallOffset = -0.27 end
+                        args[3] = root.Position + (vel * silentAim.prediction) + Vector3.new(0, fallOffset, 0)
+                    end
+                end
+                break
+            end
+        end
+    end
+    return oldNamecall(table.unpack(args))
+end)
+setreadonly(mt2,true)
